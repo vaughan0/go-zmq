@@ -40,6 +40,14 @@ const (
 	Pair              = C.ZMQ_PAIR
 )
 
+type DeviceType int
+
+const (
+	Queue     DeviceType = C.ZMQ_QUEUE
+	Forwarder            = C.ZMQ_FORWARDER
+	Streamer             = C.ZMQ_STREAMER
+)
+
 /* Context */
 
 type Context struct {
@@ -170,6 +178,12 @@ func (s *Socket) Recv() (parts [][]byte, err error) {
 		parts = append(parts, part)
 	}
 	return
+}
+
+/* Device */
+
+func Device(deviceType DeviceType, frontend, backend *Socket) {
+	C.zmq_device(C.int(deviceType), frontend.sock, backend.sock)
 }
 
 /* Utilities */
