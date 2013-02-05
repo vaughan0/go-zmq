@@ -1,3 +1,4 @@
+// Package zmq provides ZeroMQ bindings for Go.
 package zmq
 
 /*
@@ -17,13 +18,14 @@ import "C"
 
 import (
 	"errors"
-	"sync"
 	"unsafe"
 )
 
 var (
+	// ErrTerminated is returned when a socket's context has been closed.
 	ErrTerminated = errors.New("zmq context has been terminated")
-	ErrTimeout    = errors.New("zmq timeout")
+	// ErrTimeout is returned when an operation times out or a non-blocking operation cannot run immediately.
+	ErrTimeout = errors.New("zmq timeout")
 )
 
 type SocketType int
@@ -50,10 +52,12 @@ const (
 
 /* Context */
 
+// A Context manages multiple Sockets. Contexts are thread-safe.
 type Context struct {
 	ctx unsafe.Pointer
 }
 
+// Creates a new Context with the given number of dedicated IO threads.
 func NewContextThreads(nthreads int) (ctx *Context, err error) {
 	ptr := C.zmq_init(C.int(nthreads))
 	if ptr == nil {
@@ -62,10 +66,13 @@ func NewContextThreads(nthreads int) (ctx *Context, err error) {
 	return &Context{ptr}, nil
 }
 
+// Creates a new Context with the default number of IO threads (one).
 func NewContext() (*Context, error) {
 	return NewContextThreads(1)
 }
 
+// Closes the Context. Close will block until all related Sockets are closed, and all pending messages are either
+// physically transferred to the network or the socket's linger period expires.
 func (c *Context) Close() {
 	for {
 		r := C.zmq_term(c.ctx)
@@ -79,36 +86,36 @@ func (c *Context) Close() {
 	}
 }
 
+// Creates a new Socket of the specified type.
 func (c *Context) Socket(socktype SocketType) (sock *Socket, err error) {
 	ptr := C.zmq_socket(c.ctx, C.int(socktype))
 	if ptr == nil {
 		return nil, zmqerr()
 	}
-	return &Socket{
+	sock = &Socket{
 		ctx:  c,
 		sock: ptr,
-	}, nil
+	}
+	// Setup default recovery IVL
+	sock.setInt64(C.ZMQ_RECOVERY_IVL_MSEC, 10*1000)
+	sock.setInt64(C.ZMQ_RECOVERY_IVL, -1)
+	return
 }
 
 /* Socket */
 
+// A ZeroMQ Socket.
 type Socket struct {
-	ctx    *Context
-	sock   unsafe.Pointer
-	In     <-chan [][]byte
-	Out    chan<- [][]byte
-	stopch chan bool
-	wg     sync.WaitGroup
+	ctx  *Context
+	sock unsafe.Pointer
 }
 
+// Closes the socket.
 func (s *Socket) Close() {
-	if s.stopch != nil {
-		close(s.stopch)
-		s.wg.Wait()
-	}
 	C.zmq_close(s.sock)
 }
 
+// Binds the socket to the specified local endpoint address.
 func (s *Socket) Bind(endpoint string) (err error) {
 	cstr := C.CString(endpoint)
 	defer C.free(unsafe.Pointer(cstr))
@@ -118,6 +125,8 @@ func (s *Socket) Bind(endpoint string) (err error) {
 	}
 	return
 }
+
+// Connects the socket to the specified remote endpoint.
 func (s *Socket) Connect(endpoint string) (err error) {
 	cstr := C.CString(endpoint)
 	defer C.free(unsafe.Pointer(cstr))
@@ -128,6 +137,9 @@ func (s *Socket) Connect(endpoint string) (err error) {
 	return
 }
 
+// Sends a single message part. The `more` flag is used to specify whether this is the last part of the message (false),
+// or if there are more parts to follow (true). SendPart is fairly low-level, and usually Send will be the preferred
+// method to use.
 func (s *Socket) SendPart(part []byte, more bool) (err error) {
 	var msg C.zmq_msg_t
 	toMsg(&msg, part)
@@ -141,6 +153,8 @@ func (s *Socket) SendPart(part []byte, more bool) (err error) {
 	}
 	return
 }
+
+// Sends a message containing a number of parts.
 func (s *Socket) Send(parts [][]byte) (err error) {
 	for _, part := range parts[:len(parts)-1] {
 		if err = s.SendPart(part, true); err != nil {
@@ -150,6 +164,9 @@ func (s *Socket) Send(parts [][]byte) (err error) {
 	return s.SendPart(parts[len(parts)-1], false)
 }
 
+// Receives a single part along with a boolean flag (more) indicating whether more parts of the same message follow
+// (true), or this is the last part of the message (false). As with Send/SendPart, this is fairly low-level and Recv
+// should generally be used instead.
 func (s *Socket) RecvPart() (part []byte, more bool, err error) {
 	var msg C.zmq_msg_t
 	C.zmq_msg_init(&msg)
@@ -161,13 +178,14 @@ func (s *Socket) RecvPart() (part []byte, more bool, err error) {
 	part = fromMsg(&msg)
 	// Check for more parts
 	var hasmore C.int64_t
-	var optionsz C.size_t = 8
-	C.zmq_getsockopt(s.sock, C.ZMQ_RCVMORE, unsafe.Pointer(&hasmore), &optionsz)
+	C.zmq_getsockopt(s.sock, C.ZMQ_RCVMORE, unsafe.Pointer(&hasmore), nil)
 	if hasmore != 0 {
 		more = true
 	}
 	return
 }
+
+// Receives a multi-part message.
 func (s *Socket) Recv() (parts [][]byte, err error) {
 	parts = make([][]byte, 0)
 	for more := true; more; {
@@ -180,8 +198,19 @@ func (s *Socket) Recv() (parts [][]byte, err error) {
 	return
 }
 
+// Subscribe sets up a filter for incoming messages on Sub sockets.
+func (s *Socket) Subscribe(filter []byte) {
+	s.setBinary(C.ZMQ_SUBSCRIBE, filter)
+}
+
+// Unsubscribes from a filter on a Sub socket.
+func (s *Socket) Unsubscribe(filter []byte) {
+	s.setBinary(C.ZMQ_UNSUBSCRIBE, filter)
+}
+
 /* Device */
 
+// Creates and runs a ZeroMQ Device. See zmq_device(3) for more details.
 func Device(deviceType DeviceType, frontend, backend *Socket) {
 	C.zmq_device(C.int(deviceType), frontend.sock, backend.sock)
 }

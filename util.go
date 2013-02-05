@@ -3,6 +3,7 @@ package zmq
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // Prefix used for inproc socket pair endpoint names
@@ -18,7 +19,10 @@ func nextId() int {
 	return counter
 }
 
-func (c *Context) MakePair() (a *Socket, b *Socket, err error) {
+// Creates a pair of connected inproc sockets that can be used for safe inter-thread communication. Returns both
+// sockets.
+func (c *Context) MakePair() (a *Socket, b *Socket) {
+	var err error
 	addr := fmt.Sprintf("inproc://%s-%d", PairPrefix, nextId())
 	if a, err = c.Socket(Pair); err != nil {
 		goto Error
@@ -41,5 +45,18 @@ Error:
 	if b != nil {
 		b.Close()
 	}
-	return
+	panic(err)
+}
+
+func toDuration(ival int64, unit time.Duration) time.Duration {
+	if ival < 0 {
+		return -1
+	}
+	return time.Duration(ival) * unit
+}
+func fromDuration(d, unit time.Duration) int64 {
+	if d == -1 {
+		return -1
+	}
+	return int64(d / unit)
 }
