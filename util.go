@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Prefix used for inproc socket pair endpoint names
+// Prefix used for socket-pair endpoint names in MakePair.
 var PairPrefix = "socket-pair-"
 
 var counter = 0
