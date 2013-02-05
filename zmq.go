@@ -98,7 +98,6 @@ func (c *Context) Socket(socktype SocketType) (sock *Socket, err error) {
 	}
 	// Setup default recovery IVL
 	sock.setInt64(C.ZMQ_RECOVERY_IVL_MSEC, 10*1000)
-	sock.setInt64(C.ZMQ_RECOVERY_IVL, -1)
 	return
 }
 
@@ -177,11 +176,7 @@ func (s *Socket) RecvPart() (part []byte, more bool, err error) {
 	}
 	part = fromMsg(&msg)
 	// Check for more parts
-	var hasmore C.int64_t
-	C.zmq_getsockopt(s.sock, C.ZMQ_RCVMORE, unsafe.Pointer(&hasmore), nil)
-	if hasmore != 0 {
-		more = true
-	}
+	more = (s.getInt64(C.ZMQ_RCVMORE) != 0)
 	return
 }
 

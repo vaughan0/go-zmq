@@ -16,9 +16,9 @@ type Channels struct {
 	outsock  *Socket       // Write-end of outgoing messages socket
 	closein  *Socket       // Read-end of closing socket
 	closeout *Socket       // Write-end of closing socket
-	In       chan [][]byte // Incoming messages
-	Out      chan [][]byte // Outgoing messages
-	Errors   chan error    // Error notification channel
+	in       chan [][]byte // Incoming messages
+	out      chan [][]byte // Outgoing messages
+	errors   chan error    // Error notification channel
 }
 
 // Creates a new Channels object with the given channel buffer size.
@@ -26,9 +26,9 @@ func (s *Socket) ChannelsBuffer(chanbuf int) (c *Channels) {
 	c = &Channels{
 		stopch: make(chan bool),
 		socket: s,
-		In:     make(chan [][]byte, chanbuf),
-		Out:    make(chan [][]byte, chanbuf),
-		Errors: make(chan error, 2),
+		in:     make(chan [][]byte, chanbuf),
+		out:    make(chan [][]byte, chanbuf),
+		errors: make(chan error, 2),
 	}
 	c.insock, c.outsock = s.ctx.MakePair()
 	c.closein, c.closeout = s.ctx.MakePair()
@@ -50,6 +50,16 @@ func (c *Channels) Close() {
 	c.wg.Wait()
 }
 
+func (c *Channels) In() <-chan [][]byte {
+	return c.in
+}
+func (c *Channels) Out() chan<- [][]byte {
+	return c.out
+}
+func (c *Channels) Errors() <-chan error {
+	return c.errors
+}
+
 func (c *Channels) processOutgoing() {
 	defer c.wg.Done()
 	defer c.outsock.Close()
@@ -61,9 +71,9 @@ func (c *Channels) processOutgoing() {
 		select {
 		case <-c.stopch:
 			return
-		case msg := <-c.Out:
+		case msg := <-c.out:
 			if err := c.outsock.Send(msg); err != nil {
-				c.Errors <- err
+				c.errors <- err
 				goto Error
 			}
 		}
@@ -73,7 +83,7 @@ Error:
 		select {
 		case <-c.stopch:
 			return
-		case _ = <-c.Out:
+		case _ = <-c.out:
 			/* discard outgoing messages */
 		}
 	}
@@ -83,7 +93,7 @@ func (c *Channels) processSockets() {
 	defer c.wg.Done()
 	defer c.insock.Close()
 	defer c.closein.Close()
-	defer close(c.In)
+	defer close(c.in)
 
 	var poller PollSet
 	poller.Socket(c.socket, In)
@@ -102,7 +112,7 @@ func (c *Channels) processSockets() {
 		}
 		_, err := poller.Poll(-1)
 		if err != nil {
-			c.Errors <- err
+			c.errors <- err
 			goto Error
 		}
 
@@ -111,11 +121,11 @@ func (c *Channels) processSockets() {
 			incoming, err := c.socket.Recv()
 			if err != nil {
 				if err != ErrTimeout {
-					c.Errors <- err
+					c.errors <- err
 					goto Error
 				}
 			} else {
-				c.In <- incoming
+				c.in <- incoming
 			}
 		}
 
@@ -126,7 +136,7 @@ func (c *Channels) processSockets() {
 			}
 			if err := c.socket.Send(sending); err != nil {
 				if err != ErrTimeout {
-					c.Errors <- err
+					c.errors <- err
 					goto Error
 				}
 			} else {
@@ -138,7 +148,7 @@ func (c *Channels) processSockets() {
 			// Receive a new outgoing message
 			outgoing, err := c.insock.Recv()
 			if err != nil {
-				c.Errors <- err
+				c.errors <- err
 				goto Error
 			}
 			if sending != nil {
@@ -151,7 +161,7 @@ func (c *Channels) processSockets() {
 			// Check for close message
 			_, err := c.closein.Recv()
 			if err != nil && err != ErrTimeout {
-				c.Errors <- err
+				c.errors <- err
 				goto Error
 			} else if err == nil {
 				// We're done

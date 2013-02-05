@@ -121,7 +121,8 @@ func (s *Socket) SetBacklog(backlog int) {
 
 func (s *Socket) getInt(opt C.int) int {
 	var value C.int
-	r := C.zmq_getsockopt(s.sock, opt, unsafe.Pointer(&value), nil)
+	size := C.size_t(C.INT_SIZE)
+	r := C.zmq_getsockopt(s.sock, opt, unsafe.Pointer(&value), &size)
 	if r == -1 {
 		panic(zmqerr())
 	}
@@ -129,7 +130,8 @@ func (s *Socket) getInt(opt C.int) int {
 }
 func (s *Socket) getInt32(opt C.int) int32 {
 	var value C.int32_t
-	r := C.zmq_getsockopt(s.sock, opt, unsafe.Pointer(&value), nil)
+	size := C.size_t(4)
+	r := C.zmq_getsockopt(s.sock, opt, unsafe.Pointer(&value), &size)
 	if r == -1 {
 		panic(zmqerr())
 	}
@@ -137,7 +139,8 @@ func (s *Socket) getInt32(opt C.int) int32 {
 }
 func (s *Socket) getInt64(opt C.int) int64 {
 	var value C.int64_t
-	r := C.zmq_getsockopt(s.sock, opt, unsafe.Pointer(&value), nil)
+	size := C.size_t(8)
+	r := C.zmq_getsockopt(s.sock, opt, unsafe.Pointer(&value), &size)
 	if r == -1 {
 		panic(zmqerr())
 	}

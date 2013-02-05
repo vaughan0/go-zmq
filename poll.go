@@ -92,7 +92,7 @@ func (p *PollSet) Events(index int) EventSet {
 // immediately. If it is negative, Poll will wait forever until an event is triggered. Poll returns the number of
 // sockets/files for which events were triggered, or a non-nil error.
 func (p *PollSet) Poll(timeout time.Duration) (n int, err error) {
-	if len(p.items) == 0 {
+	if p.items == nil || len(p.items) == 0 {
 		return
 	}
 	micros := C.long(timeout / time.Microsecond)
