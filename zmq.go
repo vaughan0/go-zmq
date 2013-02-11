@@ -97,7 +97,7 @@ func (c *Context) Socket(socktype SocketType) (sock *Socket, err error) {
 		sock: ptr,
 	}
 	// Setup default recovery IVL
-	sock.setInt64(C.ZMQ_RECOVERY_IVL_MSEC, 10*1000)
+	sock.setInt64(C.ZMQ_RECOVERY_IVL, 10*1000)
 	return
 }
 
@@ -146,7 +146,7 @@ func (s *Socket) SendPart(part []byte, more bool) (err error) {
 	if more {
 		flags = C.ZMQ_SNDMORE
 	}
-	r := C.zmq_send(s.sock, &msg, flags)
+	r := C.zmq_msg_send(&msg, s.sock, flags)
 	if r == -1 {
 		err = zmqerr()
 	}
@@ -169,7 +169,7 @@ func (s *Socket) Send(parts [][]byte) (err error) {
 func (s *Socket) RecvPart() (part []byte, more bool, err error) {
 	var msg C.zmq_msg_t
 	C.zmq_msg_init(&msg)
-	r := C.zmq_recv(s.sock, &msg, 0)
+	r := C.zmq_msg_recv(&msg, s.sock, 0)
 	if r == -1 {
 		err = zmqerr()
 		return

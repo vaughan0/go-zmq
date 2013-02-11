@@ -19,8 +19,11 @@ import (
 func (s *Socket) GetType() SocketType {
 	return SocketType(s.getInt(C.ZMQ_TYPE))
 }
-func (s *Socket) GetHWM() uint64 {
-	return uint64(s.getInt64(C.ZMQ_HWM))
+func (s *Socket) GetSendHWM() uint64 {
+	return uint64(s.getInt64(C.ZMQ_SNDHWM))
+}
+func (s *Socket) GetRecvHWM() uint64 {
+	return uint64(s.getInt64(C.ZMQ_RCVHWM))
 }
 func (s *Socket) GetRecvTimeout() time.Duration {
 	return toDuration(int64(s.getInt(C.ZMQ_RCVTIMEO)), time.Millisecond)
@@ -38,10 +41,10 @@ func (s *Socket) GetRate() (kbits int64) {
 	return s.getInt64(C.ZMQ_RATE)
 }
 func (s *Socket) GetRecoveryIVL() time.Duration {
-	return toDuration(s.getInt64(C.ZMQ_RECOVERY_IVL_MSEC), time.Millisecond)
+	return toDuration(s.getInt64(C.ZMQ_RECOVERY_IVL), time.Millisecond)
 }
 func (s *Socket) GetMulticastLoop() bool {
-	return s.getInt64(C.ZMQ_MCAST_LOOP) != 0
+	return false
 }
 func (s *Socket) GetSendBuffer() (bytes uint64) {
 	return uint64(s.getInt64(C.ZMQ_SNDBUF))
@@ -71,7 +74,8 @@ func (s *Socket) GetEvents() EventSet {
 /* Set */
 
 func (s *Socket) SetHWM(hwm uint64) {
-	s.setInt64(C.ZMQ_HWM, int64(hwm))
+	s.setInt64(C.ZMQ_SNDHWM, int64(hwm))
+	s.setInt64(C.ZMQ_RCVHWM, int64(hwm))
 }
 func (s *Socket) SetAffinity(affinity uint64) {
 	s.setInt64(C.ZMQ_AFFINITY, int64(affinity))
@@ -89,15 +93,9 @@ func (s *Socket) SetRate(kbits int64) {
 	s.setInt64(C.ZMQ_RATE, kbits)
 }
 func (s *Socket) SetRecoveryIVL(ivl time.Duration) {
-	s.setInt64(C.ZMQ_RECOVERY_IVL_MSEC, fromDuration(ivl, time.Millisecond))
+	s.setInt64(C.ZMQ_RECOVERY_IVL, fromDuration(ivl, time.Millisecond))
 }
-func (s *Socket) SetMulticastLoop(loopback bool) {
-	value := int64(0)
-	if loopback {
-		value = 1
-	}
-	s.setInt64(C.ZMQ_MCAST_LOOP, value)
-}
+
 func (s *Socket) SetSendBuffer(bytes uint64) {
 	s.setInt64(C.ZMQ_SNDBUF, int64(bytes))
 }
