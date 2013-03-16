@@ -1,5 +1,4 @@
 go-zmq
 =======
-A 0MQ library, which supports zmq3.2, forked and slightly changed from
-https://github.com/vaughan0/go-zmq
 
+ZeroMQ bindings for Go. go-zmq is currently built for ZeroMQ 3.2.
