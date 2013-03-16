@@ -95,15 +95,24 @@ func (p *PollSet) Poll(timeout time.Duration) (n int, err error) {
 	if p.items == nil || len(p.items) == 0 {
 		return
 	}
-	micros := C.long(timeout / time.Microsecond)
-	if timeout < 0 {
-		micros = -1
-	}
-	r := C.zmq_poll(&p.items[0], C.int(len(p.items)), micros)
-	if r == -1 {
-		err = zmqerr()
-	} else {
-		n = int(r)
+	started := time.Now()
+	for {
+		var micros C.long
+		if timeout < 0 {
+			micros = -1
+		} else {
+			micros = C.long(started.Add(timeout).Sub(time.Now()) / time.Microsecond)
+		}
+		err = nil
+		r := C.zmq_poll(&p.items[0], C.int(len(p.items)), micros)
+		if r == -1 {
+			err = zmqerr()
+		} else {
+			n = int(r)
+		}
+		if err != ErrInterrupted {
+			break
+		}
 	}
 	return
 }

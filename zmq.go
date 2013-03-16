@@ -25,7 +25,8 @@ var (
 	// ErrTerminated is returned when a socket's context has been closed.
 	ErrTerminated = errors.New("zmq context has been terminated")
 	// ErrTimeout is returned when an operation times out or a non-blocking operation cannot run immediately.
-	ErrTimeout = errors.New("zmq timeout")
+	ErrTimeout     = errors.New("zmq timeout")
+	ErrInterrupted = errors.New("system call interrupted")
 )
 
 type SocketType int
@@ -37,6 +38,8 @@ const (
 	Router            = C.ZMQ_ROUTER
 	Pub               = C.ZMQ_PUB
 	Sub               = C.ZMQ_SUB
+	XPub              = C.ZMQ_XPUB
+	XSub              = C.ZMQ_XSUB
 	Push              = C.ZMQ_PUSH
 	Pull              = C.ZMQ_PULL
 	Pair              = C.ZMQ_PAIR
@@ -96,8 +99,6 @@ func (c *Context) Socket(socktype SocketType) (sock *Socket, err error) {
 		ctx:  c,
 		sock: ptr,
 	}
-	// Setup default recovery IVL
-	sock.setInt64(C.ZMQ_RECOVERY_IVL_MSEC, 10*1000)
 	return
 }
 
@@ -140,15 +141,22 @@ func (s *Socket) Connect(endpoint string) (err error) {
 // or if there are more parts to follow (true). SendPart is fairly low-level, and usually Send will be the preferred
 // method to use.
 func (s *Socket) SendPart(part []byte, more bool) (err error) {
-	var msg C.zmq_msg_t
-	toMsg(&msg, part)
-	flags := C.int(0)
-	if more {
-		flags = C.ZMQ_SNDMORE
-	}
-	r := C.zmq_send(s.sock, &msg, flags)
-	if r == -1 {
-		err = zmqerr()
+	for {
+		err = nil
+		var msg C.zmq_msg_t
+		toMsg(&msg, part)
+		flags := C.int(0)
+		if more {
+			flags = C.ZMQ_SNDMORE
+		}
+		r := C.zmq_msg_send(&msg, s.sock, flags)
+		if r == -1 {
+			err = zmqerr()
+		}
+		C.zmq_msg_close(&msg)
+		if err != ErrInterrupted {
+			break
+		}
 	}
 	return
 }
@@ -169,14 +177,23 @@ func (s *Socket) Send(parts [][]byte) (err error) {
 func (s *Socket) RecvPart() (part []byte, more bool, err error) {
 	var msg C.zmq_msg_t
 	C.zmq_msg_init(&msg)
-	r := C.zmq_recv(s.sock, &msg, 0)
-	if r == -1 {
-		err = zmqerr()
+	for {
+		err = nil
+		r := C.zmq_msg_recv(&msg, s.sock, 0)
+		if r == -1 {
+			err = zmqerr()
+		}
+		if err != ErrInterrupted {
+			break
+		}
+	}
+	if err != nil {
+		C.zmq_msg_close(&msg)
 		return
 	}
 	part = fromMsg(&msg)
 	// Check for more parts
-	more = (s.getInt64(C.ZMQ_RCVMORE) != 0)
+	more = (s.getInt(C.ZMQ_RCVMORE) != 0)
 	return
 }
 
@@ -214,10 +231,13 @@ func Device(deviceType DeviceType, frontend, backend *Socket) {
 
 func zmqerr() error {
 	eno := C.my_errno()
-	if eno == C.ETERM {
+	switch eno {
+	case C.ETERM:
 		return ErrTerminated
-	} else if eno == C.EAGAIN {
+	case C.EAGAIN:
 		return ErrTimeout
+	case C.EINTR:
+		return ErrInterrupted
 	}
 	str := C.GoString(C.zmq_strerror(eno))
 	return errors.New(str)
@@ -230,5 +250,6 @@ func toMsg(msg *C.zmq_msg_t, data []byte) {
 	}
 }
 func fromMsg(msg *C.zmq_msg_t) []byte {
+	defer C.zmq_msg_close(msg)
 	return C.GoBytes(C.zmq_msg_data(msg), C.int(C.zmq_msg_size(msg)))
 }
