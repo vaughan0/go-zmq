@@ -55,8 +55,8 @@ for {
 }
 ```
 
-Usings Channels
----------------
+Using Channels
+--------------
 
 ZeroMQ sockets are not thread-safe, which would make any ambitious ZeroMQ-using gopher sad.
 Luckily go-zmq provides a (thread-safe) way to use sockets with native Go channels.
