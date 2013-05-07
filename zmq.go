@@ -18,6 +18,7 @@ import "C"
 
 import (
 	"errors"
+	"sync"
 	"unsafe"
 )
 
@@ -99,7 +100,34 @@ func (c *Context) Socket(socktype SocketType) (sock *Socket, err error) {
 		ctx:  c,
 		sock: ptr,
 	}
+	sock.SetLinger(0)
 	return
+}
+
+/* Global context */
+
+var (
+	globalCtx  *Context = nil
+	globalLock sync.Mutex
+)
+
+// Returns the default Context. Note that the context will not be created until
+// the first call to DefaultContext.
+func DefaultContext() *Context {
+	globalLock.Lock()
+	defer globalLock.Unlock()
+	if globalCtx == nil {
+		var err error
+		if globalCtx, err = NewContext(); err != nil {
+			panic(err)
+		}
+	}
+	return globalCtx
+}
+
+// Creates a new socket using the default context (see DefaultContext).
+func NewSocket(socktype SocketType) (*Socket, error) {
+	return DefaultContext().Socket(socktype)
 }
 
 /* Socket */
