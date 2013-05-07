@@ -1,7 +1,7 @@
 go-zmq
 =======
 
-ZeroMQ bindings for Go, currently built for ZeroMQ 3.2. Pull requests welcome :)
+ZeroMQ (ZMQ, 0MQ) bindings for Go (golang), currently built for ZeroMQ 3.2. Pull requests welcome :)
 
 View the API docs [here](http://godoc.org/github.com/vaughan0/go-zmq).
 
