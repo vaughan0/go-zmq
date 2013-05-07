@@ -1,11 +1,8 @@
 package zmq
 
 import (
-	"github.com/vaughan0/go-logging"
 	"sync"
 )
-
-var log = logging.Get("vaughan0.zmq")
 
 // Channels provides a method for using Go channels to send and receive messages on a Socket. This is useful not only
 // because it allows one to use select for sockets, but also because Sockets by themselves are not thread-safe (ie. one
@@ -195,21 +192,18 @@ Error:
 		if poller.Events(0).CanRecv() {
 			// Discard new incoming message
 			if _, err = c.socket.Recv(); err != nil && err != ErrTimeout {
-				log.Warn(err)
 				return
 			}
 		}
 		if poller.Events(1).CanRecv() {
 			// Discard outgoing message
 			if _, err = c.insock.Recv(); err != nil && err != ErrTimeout {
-				log.Warn(err)
 				return
 			}
 		}
 		if poller.Events(2).CanRecv() {
 			_, err = c.closein.Recv()
 			if err != nil && err != ErrTimeout {
-				log.Warn(err)
 				return
 			} else if err == nil {
 				return
