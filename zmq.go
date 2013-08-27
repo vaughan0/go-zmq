@@ -255,6 +255,14 @@ func Device(deviceType DeviceType, frontend, backend *Socket) {
 	C.zmq_device(C.int(deviceType), frontend.sock, backend.sock)
 }
 
+// Version reports 0MQ library version
+func Version() (int, int, int) {
+	var major, minor, patch C.int
+	C.zmq_version(&major, &minor, &patch)
+
+	return int(major), int(minor), int(patch)
+}
+
 /* Utilities */
 
 func zmqerr() error {
