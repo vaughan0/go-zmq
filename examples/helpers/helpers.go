@@ -13,18 +13,18 @@ func Dump(socket *zmq.Socket) {
 
 	fmt.Println("----------------------------------------")
 
-	for {
-		// Process parts one by one
-		msg, more, err := socket.RecvPart()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+	parts, err := socket.Recv()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
+	for _, msg := range parts {
 		var binary bool
 		for _, x := range msg {
 			if x < 32 || x > 127 {
 				binary = true
+				break
 			}
 		}
 
@@ -35,10 +35,6 @@ func Dump(socket *zmq.Socket) {
 			fmt.Printf("% X\n", msg)
 		} else {
 			fmt.Println(string(msg))
-		}
-
-		if !more {
-			break // Last message part
 		}
 	}
 }
