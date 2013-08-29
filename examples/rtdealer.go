@@ -28,11 +28,11 @@ func workerTask() {
 	var total int
 	for {
 		// Tell the broker we're ready for work
-        worker.SendPart([]byte(""), true)
+		worker.SendPart([]byte(""), true)
 		worker.SendPart([]byte("Hi Boss"), false)
 
 		// Get workload from broker, until finished
-		worker.RecvPart()     // Envelope delimiter
+		worker.RecvPart() // Envelope delimiter
 		workload, _, _ := worker.RecvPart()
 		finished := bytes.Equal(workload, []byte("Fired!"))
 		if finished {
