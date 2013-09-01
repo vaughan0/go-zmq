@@ -49,9 +49,11 @@ func Dump(frame [][]byte, prefix string) {
 }
 
 // SetId sets simple random printable identity on socket
-func SetId(socket *zmq.Socket) {
+func SetId(socket *zmq.Socket) (id []byte) {
 	buf := make([]byte, 4)
 	io.ReadFull(rand.Reader, buf)
-	id := fmt.Sprintf("%04X-%04X", buf[:2], buf[2:])
-	socket.SetIdentitiy([]byte(id))
+	id = []byte(fmt.Sprintf("%04X-%04X", buf[:2], buf[2:]))
+	socket.SetIdentitiy(id)
+
+	return
 }
