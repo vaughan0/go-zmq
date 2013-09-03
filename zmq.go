@@ -18,6 +18,8 @@ import "C"
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 	"sync"
 	"unsafe"
 )
@@ -52,6 +54,13 @@ const (
 	Queue     DeviceType = C.ZMQ_QUEUE
 	Forwarder            = C.ZMQ_FORWARDER
 	Streamer             = C.ZMQ_STREAMER
+)
+
+// This port range is defined by IANA for dynamic or private ports
+// We use this when choosing a port for dynamic binding.
+const (
+	dynPortFrom uint16 = 0xc000
+	dynPortTo   uint16 = 0xffff
 )
 
 /* Context */
@@ -136,6 +145,7 @@ func NewSocket(socktype SocketType) (*Socket, error) {
 type Socket struct {
 	ctx  *Context
 	sock unsafe.Pointer
+	port uint16
 }
 
 // Closes the socket.
@@ -143,15 +153,46 @@ func (s *Socket) Close() {
 	C.zmq_close(s.sock)
 }
 
-// Binds the socket to the specified local endpoint address.
+// Binds the socket to the specified local endpoint address. If the port
+// is specified as '*', binds to any free port from dynPortFrom to dynPortTo
 func (s *Socket) Bind(endpoint string) (err error) {
-	cstr := C.CString(endpoint)
+	var cstr *C.char
 	defer C.free(unsafe.Pointer(cstr))
-	r := C.zmq_bind(s.sock, cstr)
-	if r == -1 {
+	parts := strings.Split(endpoint, ":")
+	last := len(parts) - 1
+	if parts[last] == "*" {
+		for port := dynPortFrom; port <= dynPortTo; port++ {
+			// Try to bind on the next plausible port
+			parts[last] = strconv.FormatUint(uint64(port), 10)
+			cstr = C.CString(strings.Join(parts, ":"))
+			r := C.zmq_bind(s.sock, cstr)
+			if r == 0 {
+				s.port = port
+				return
+			}
+		}
 		err = zmqerr()
+	} else {
+		var port uint64
+		port, err = strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return
+		}
+		s.port = uint16(port)
+		cstr = C.CString(endpoint)
+		r := C.zmq_bind(s.sock, cstr)
+		if r == -1 {
+			err = zmqerr()
+		}
 	}
 	return
+}
+
+// Port returns the port number assigned to the socket. This is particularly useful
+// when the port passed to Bind method is specified as '*'. The assigned dynamic port
+// number can be received by this method.
+func (s *Socket) Port() uint16 {
+	return s.port
 }
 
 // Connects the socket to the specified remote endpoint.
