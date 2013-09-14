@@ -16,17 +16,57 @@ var endpoints = []struct {
 	{"tcp://*:*", 0, true},
 }
 
+func TestDynBind(t *testing.T) {
+	context, err := NewContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer context.Close()
+
+	socket, err := context.Socket(Push)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer socket.Close()
+
+	err = socket.Bind("tcp://*:*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if socket.Port() != dynPortFrom {
+		t.Errorf("expected %d  got %d", dynPortFrom, socket.Port())
+	}
+
+	socket2, err := context.Socket(Push)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer socket2.Close()
+
+	err = socket2.Bind("tcp://*:*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if socket2.Port() != dynPortFrom+1 {
+		t.Errorf("expected %d  got %d", dynPortFrom+1, socket2.Port())
+	}
+}
+
 func TestBind(t *testing.T) {
 
 	context, err := NewContext()
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer context.Close()
 
 	socket, err := context.Socket(Push)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer socket.Close()
 
 	for i, tt := range endpoints {
 		var port uint16
