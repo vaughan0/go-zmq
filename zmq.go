@@ -154,11 +154,33 @@ func (s *Socket) Bind(endpoint string) (err error) {
 	return
 }
 
+// Unbinds the socket from the specified local endpoint address.
+func (s *Socket) Unbind(endpoint string) (err error) {
+	cstr := C.CString(endpoint)
+	defer C.free(unsafe.Pointer(cstr))
+	r := C.zmq_unbind(s.sock, cstr)
+	if r == -1 {
+		err = zmqerr()
+	}
+	return
+}
+
 // Connects the socket to the specified remote endpoint.
 func (s *Socket) Connect(endpoint string) (err error) {
 	cstr := C.CString(endpoint)
 	defer C.free(unsafe.Pointer(cstr))
 	r := C.zmq_connect(s.sock, cstr)
+	if r == -1 {
+		err = zmqerr()
+	}
+	return
+}
+
+// Disconnects the socket from the specified remote endpoint.
+func (s *Socket) Disconnect(endpoint string) (err error) {
+	cstr := C.CString(endpoint)
+	defer C.free(unsafe.Pointer(cstr))
+	r := C.zmq_disconnect(s.sock, cstr)
 	if r == -1 {
 		err = zmqerr()
 	}
