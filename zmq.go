@@ -173,8 +173,9 @@ func (s *Socket) Bind(endpoint string) (err error) {
 		}
 		err = zmqerr()
 	} else {
-		port, err := strconv.ParseUint(parts[last], 10, 16)
-		if err == nil {
+		s.port = 0
+		port, perr := strconv.ParseUint(parts[last], 10, 16)
+		if perr == nil {
 			s.port = uint16(port)
 		}
 		cstr = C.CString(endpoint)
