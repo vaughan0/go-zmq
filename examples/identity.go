@@ -22,7 +22,7 @@ func main() {
 
 	anonymous.Connect("inproc://example")
 	anonymous.SendPart([]byte("ROUTER uses a generated UUID"), false)
-	helpers.Dump(sink)
+	helpers.DumpSocket(sink)
 
 	// Then set the identity ourselves
 	identified, _ := context.Socket(zmq.Req)
@@ -31,5 +31,5 @@ func main() {
 	identified.SetIdentitiy([]byte("PEER2"))
 	identified.Connect("inproc://example")
 	identified.SendPart([]byte("ROUTER socket uses REQ's socket identity"), false)
-	helpers.Dump(sink)
+	helpers.DumpSocket(sink)
 }
