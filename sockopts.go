@@ -109,6 +109,9 @@ func (s *Socket) SetAffinity(affinity uint64) {
 func (s *Socket) SetIdentitiy(ident []byte) {
 	s.setBinary(C.ZMQ_IDENTITY, ident)
 }
+func (s *Socket) SetSubscribe(filter []byte) {
+	s.setBinary(C.ZMQ_SUBSCRIBE, filter)
+}
 func (s *Socket) SetRecvTimeout(timeo time.Duration) {
 	s.setInt(C.ZMQ_RCVTIMEO, int(fromDuration(timeo, time.Millisecond)))
 }
