@@ -10,6 +10,7 @@ import (
 
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 func main() {
@@ -26,6 +27,7 @@ func main() {
 
 	for {
 		// Get values that will fool the boss
+		rand.Seed(time.Now().UnixNano())
 		zipcode := rand.Intn(100000)
 		temperature := rand.Intn(215) - 80
 		relhumidity := rand.Intn(50) + 10

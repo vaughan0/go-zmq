@@ -44,7 +44,10 @@ func main() {
 		fmt.Sscanf(string(str), "%d %d %d", &zipcode, &temperature, &relhumidity)
 
 		totaltemp += temperature
+
+		// Simple progress indicator for the viewer
+		fmt.Print(".")
 	}
 
-	fmt.Printf("Average temperature for zipcode '%s' was %dF\n", filter, totaltemp/updateNbr)
+	fmt.Printf("\nAverage temperature for zipcode '%s' was %dF\n", filter, totaltemp/updateNbr)
 }
