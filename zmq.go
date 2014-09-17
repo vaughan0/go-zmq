@@ -3,7 +3,7 @@ package zmq
 
 /*
 
-#cgo LDFLAGS: -lzmq
+#cgo LDFLAGS: -L/usr/local/lib -lzmq
 
 #include <zmq.h>
 #include <stdlib.h>
